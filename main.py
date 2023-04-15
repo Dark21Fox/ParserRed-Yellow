@@ -7,7 +7,7 @@ import asyncio
 import aiohttp
 import aiofiles
 import traceback
-from tqdm.contrib.itertools import product
+from tqdm.contrib import itertools
 
 link_list = []
 url_interpol = "https://ws-public.interpol.int/notices/v1/"
@@ -21,7 +21,7 @@ class Parser:
         os.mkdir(f'{self.type}') if not os.path.exists(f"{self.type}") else shutil.rmtree(f'{self.type}')
         async with aiohttp.ClientSession() as session:
             # построение url с фильтрами
-            for country, gender, age in product(dict.country_list, dict.gender_list, range(1, 100), ncols=100, position=0, leave=True):
+            for country, gender, age in itertools.product(dict.country_list, dict.gender_list, range(1, 100), ncols=100, position=0, leave=True):
                 try:
                     full_url = f'{url_interpol}{self.type}?nationality={country}&sexId={gender}&ageMin={age}&ageMax={age}'
                     #print(f"Страна:{country}. Пол:{gender}. Возраст {age}")
