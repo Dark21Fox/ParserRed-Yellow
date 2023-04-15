@@ -1,5 +1,5 @@
 
-gender_list = ["M", "F", "U"]
+gender_list = ['M', 'F', 'U']
 
 country_list = ['AF', 'AL', 'DZ', 'AS', 'AD', 'AO', 'AI', 'AG', 'AR', 'AM', 'AU', 'AT', 'AZ',
                 'BS', 'BH', 'BD', 'BB', 'BY', 'BE', 'BZ', 'BJ', 'BT', 'BO', 'BA', 'BW', 'BR',
