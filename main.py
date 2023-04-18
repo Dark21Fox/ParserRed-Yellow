@@ -9,13 +9,32 @@ import aiofiles
 import traceback
 from tqdm.contrib import itertools
 
-link_list = []
-url_interpol = "https://ws-public.interpol.int/notices/v1/"
+
+class Threading:
+    def __init__(self, type_one, type_two):
+        self.yellow = type_one
+        self.red = type_two
+
+    async def create_thread(self):
+        await asyncio.gather(
+            asyncio.to_thread(self.start_thread, self.yellow),
+            asyncio.to_thread(self.start_thread, self.red),
+        )
+
+    @staticmethod
+    def start_thread(type):
+        parser = Parser(type)
+        print(f"Старт цикла событий _{type}_: {time.strftime('%X')}")
+        asyncio.run(parser.main())
+        print(f"Завершение цикла событий _{type}_: {time.strftime('%X')}")
 
 
 class Parser:
     def __init__(self, type):
         self.type = type
+        self.iteration = Iteration()
+        self.write_file = WriteFile(self.type)
+        self.url_interpol = "https://ws-public.interpol.int/notices/v1/"
 
     async def main(self):
         os.mkdir(f'{self.type}') if not os.path.exists(f"{self.type}") else shutil.rmtree(f'{self.type}')
@@ -23,47 +42,67 @@ class Parser:
             # построение url с фильтрами
             for country, gender, age in itertools.product(dict.country_list, dict.gender_list, range(1, 100), ncols=100, position=0, leave=True):
                 try:
-                    full_url = f'{url_interpol}{self.type}?nationality={country}&sexId={gender}&ageMin={age}&ageMax={age}'
+                    full_url = f'{self.url_interpol}{self.type}?nationality={country}&sexId={gender}&ageMin={age}&ageMax={age}'
                     #print(f"Страна:{country}. Пол:{gender}. Возраст {age}")
                     async with session.get(full_url) as json_response:
-                        list_json = await json_response.json()
+                        list_json = await json_response.json(content_type=None)
                         if list_json['_embedded']['notices']:
-                            await self.iteration_pages(session, full_url, list_json)
+                            pages_json = await self.iteration.iteration_pages(session, full_url, list_json)
+                            await asyncio.sleep(0.5)
+                            path, profile_json, image_link = await self.iteration.iteration_item_in_list(session, pages_json)
+                            await self.write_file.write_json(path, profile_json)
+                            await self.write_file.write_image(path, session, image_link)
+                            await asyncio.sleep(0.5)
                         else:
                             # print("Нет данных на запрос")
                             continue
                 except Exception as error:
                     print(f"Ошибка при парсинге:\n{error}", traceback.format_exc())
+                    await self.write_file.write_txt(full_url)
                     continue
 
-    async def iteration_pages(self, session, full_url, list_json):
+
+class Iteration(Parser):
+    def __init__(self):
+        self.link_list = []
+
+    @staticmethod
+    async def iteration_pages(session, full_url, list_json):
         # перебор страниц
         for page in range(1, int(list_json['_links']['last']['href'][-1]) + 1):
-            time.sleep(0.2)
             # итоговый запрос
             async with session.get(f'{full_url}&resultPerPage=20&page={page}') as list_response:
-                list_json = await list_response.json()
-                await self.iteration_item_in_list(session, list_json)
-                time.sleep(0.25)
+                pages_json = await list_response.json(content_type=None)
+                return pages_json
 
     async def iteration_item_in_list(self, session, list_json):
         # перебор элементов в списке на странице
         for item in list_json['_embedded']['notices']:
-            if item['_links']['self']['href'] not in link_list:
+            if item['_links']['self']['href'] not in self.link_list:
                 link = item['_links']['self']['href']
-                link_list.append(link)
+                self.link_list.append(link)
                 async with session.get(link) as item_response:
-                    profile_json = await item_response.json()
+                    profile_json = await item_response.json(content_type=None)
                     path = f"{item['name']}_{item['forename']}({item['entity_id'].replace('/', '.')})"
-                    await self.write_json(path, profile_json)
-                    await self.write_image(path, session, item['_links']['images']['href'])
-                    # print(profile_json)
-                    time.sleep(0.5)
+                    image_link = item['_links']['images']['href']
+                    #print(profile_json)
+                    return path, profile_json, image_link
+
+
+class WriteFile(Parser):
+    def __init__(self, type):
+        self.type = type
+
+    @staticmethod
+    async def write_txt(link):
+        # запись url с ошибкой
+        with open(f"error_link.txt", 'w') as file:
+            file.write(link + '\n')
 
     async def write_image(self, path, session, api_images):
         # запись изображений из профиля
         async with session.get(api_images) as res_images:
-            profile_photo_data = await res_images.json()
+            profile_photo_data = await res_images.json(content_type=None)
             for item_image in profile_photo_data['_embedded']['images']:
                 async with session.get(f"{api_images}/{item_image['picture_id']}") as res_image:
                     file = await aiofiles.open(f"{self.type}/{path}/{item_image['picture_id']}.jpg", mode='wb')
@@ -77,19 +116,6 @@ class Parser:
             json.dump(data, outfile, indent=2)
 
 
-def start_thread(type):
-    class_parser = Parser(type)
-    print(f"Старт цикла событий _{type}_: {time.strftime('%X')}")
-    asyncio.run(class_parser.main())
-    print(f"Завершение цикла событий _{type}_: {time.strftime('%X')}")
-
-
-async def create_thread():
-    await asyncio.gather(
-        asyncio.to_thread(start_thread, 'yellow'),
-        asyncio.to_thread(start_thread, 'red'),
-    )
-
-
 if __name__ == '__main__':
-    asyncio.run(create_thread())
+    thread = Threading('yellow', 'red')
+    asyncio.run(thread.create_thread())
