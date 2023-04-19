@@ -31,18 +31,18 @@ class Threading:
 
 class Parser:
     def __init__(self, type):
-        self.type = type
+        self.__type = type
         self.iteration = Iteration()
-        self.write_file = WriteFile(self.type)
+        self.write_file = WriteFile(self.__type)
         self.url_interpol = "https://ws-public.interpol.int/notices/v1/"
 
     async def main(self):
-        os.mkdir(f'{self.type}') if not os.path.exists(f"{self.type}") else shutil.rmtree(f'{self.type}')
+        os.mkdir(f'{self.__type}') if not os.path.exists(f"{self.__type}") else shutil.rmtree(f'{self.__type}')
         async with aiohttp.ClientSession() as session:
             # построение url с фильтрами
             for country, gender, age in itertools.product(dict.country_list, dict.gender_list, range(1, 100), ncols=100, position=0, leave=True):
                 try:
-                    full_url = f'{self.url_interpol}{self.type}?nationality={country}&sexId={gender}&ageMin={age}&ageMax={age}'
+                    full_url = f'{self.url_interpol}{self.__type}?nationality={country}&sexId={gender}&ageMin={age}&ageMax={age}'
                     #print(f"Страна:{country}. Пол:{gender}. Возраст {age}")
                     async with session.get(full_url) as json_response:
                         list_json = await json_response.json(content_type=None)
@@ -91,7 +91,7 @@ class Iteration(Parser):
 
 class WriteFile(Parser):
     def __init__(self, type):
-        self.type = type
+        self.__type = type
 
     @staticmethod
     async def write_txt(link):
@@ -105,14 +105,14 @@ class WriteFile(Parser):
             profile_photo_data = await res_images.json(content_type=None)
             for item_image in profile_photo_data['_embedded']['images']:
                 async with session.get(f"{api_images}/{item_image['picture_id']}") as res_image:
-                    file = await aiofiles.open(f"{self.type}/{path}/{item_image['picture_id']}.jpg", mode='wb')
+                    file = await aiofiles.open(f"{self.__type}/{path}/{item_image['picture_id']}.jpg", mode='wb')
                     await file.write(await res_image.read())
                     await file.close()
 
     async def write_json(self, path, data):
         # запись данных json из профиля
-        os.makedirs(f'{self.type}/{path}')
-        with open(f"{self.type}/{path}/data.json", 'w') as outfile:
+        os.makedirs(f'{self.__type}/{path}')
+        with open(f"{self.__type}/{path}/data.json", 'w') as outfile:
             json.dump(data, outfile, indent=2)
 
 
