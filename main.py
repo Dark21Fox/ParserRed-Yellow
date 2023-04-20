@@ -66,8 +66,7 @@ class Iteration(Parser):
     def __init__(self):
         self.link_list = []
 
-    @staticmethod
-    async def iteration_pages(session, full_url, list_json):
+    async def iteration_pages(self, session, full_url, list_json):
         # перебор страниц
         for page in range(1, int(list_json['_links']['last']['href'][-1]) + 1):
             # итоговый запрос
@@ -93,8 +92,7 @@ class WriteFile(Parser):
     def __init__(self, type):
         self.__type = type
 
-    @staticmethod
-    async def write_txt(link):
+    async def write_txt(self, link):
         # запись url с ошибкой
         with open(f"error_link.txt", 'w') as file:
             file.write(link + '\n')
