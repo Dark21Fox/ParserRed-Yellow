@@ -31,19 +31,19 @@ class Threading:
 
 class Parser:
     def __init__(self, type):
-        self.__type = type
+        self._type = type
         self.iteration = Iteration()
-        self.write_file = WriteFile(self.__type)
+        self.write_file = WriteFile(self._type)
         self.url_interpol = "https://ws-public.interpol.int/notices/v1/"
 
     async def main(self):
-        os.mkdir(f'{self.__type}') if not os.path.exists(f"{self.__type}") else shutil.rmtree(f'{self.__type}')
+        os.mkdir(f'{self._type}') if not os.path.exists(f"{self._type}") else shutil.rmtree(f'{self._type}')
         async with aiohttp.ClientSession() as session:
             # построение url с фильтрами
             for country, gender, age in itertools.product(dict.country_list, dict.gender_list, range(1, 100), ncols=100, position=0, leave=True):
                 try:
-                    full_url = f'{self.url_interpol}{self.__type}?nationality={country}&sexId={gender}&ageMin={age}&ageMax={age}'
-                    #print(f"Страна:{country}. Пол:{gender}. Возраст {age}")
+                    full_url = f'{self.url_interpol}{self._type}?nationality={country}&sexId={gender}&ageMin={age}&ageMax={age}'
+                    # print(f"Страна:{country}. Пол:{gender}. Возраст {age}")
                     async with session.get(full_url) as json_response:
                         list_json = await json_response.json(content_type=None)
                         if list_json['_embedded']['notices']:
@@ -84,17 +84,17 @@ class Iteration(Parser):
                     profile_json = await item_response.json(content_type=None)
                     path = f"{item['name']}_{item['forename']}({item['entity_id'].replace('/', '.')})"
                     image_link = item['_links']['images']['href']
-                    #print(profile_json)
+                    # print(profile_json)
                     return path, profile_json, image_link
 
 
 class WriteFile(Parser):
     def __init__(self, type):
-        self.__type = type
+        self._type = type
 
     async def write_txt(self, link):
         # запись url с ошибкой
-        with open(f"error_link.txt", 'w') as file:
+        with open(f"{self._type}_error_link.txt", 'w') as file:
             file.write(link + '\n')
 
     async def write_image(self, path, session, api_images):
@@ -103,14 +103,14 @@ class WriteFile(Parser):
             profile_photo_data = await res_images.json(content_type=None)
             for item_image in profile_photo_data['_embedded']['images']:
                 async with session.get(f"{api_images}/{item_image['picture_id']}") as res_image:
-                    file = await aiofiles.open(f"{self.__type}/{path}/{item_image['picture_id']}.jpg", mode='wb')
+                    file = await aiofiles.open(f"{self._type}/{path}/{item_image['picture_id']}.jpg", mode='wb')
                     await file.write(await res_image.read())
                     await file.close()
 
     async def write_json(self, path, data):
         # запись данных json из профиля
-        os.makedirs(f'{self.__type}/{path}')
-        with open(f"{self.__type}/{path}/data.json", 'w') as outfile:
+        os.makedirs(f'{self._type}/{path}')
+        with open(f"{self._type}/{path}/data.json", 'w') as outfile:
             json.dump(data, outfile, indent=2)
 
 
