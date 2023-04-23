@@ -11,20 +11,21 @@ from tqdm.contrib import itertools
 
 
 class Threading:
-    def __init__(self, type_one, type_two):
-        self.yellow = type_one
-        self.red = type_two
+    def __init__(self, list_type):
+        self.list_type = list_type
+        self.tasks = []
 
     async def create_thread(self):
-        await asyncio.gather(
-            asyncio.to_thread(self.start_thread, self.yellow),
-            asyncio.to_thread(self.start_thread, self.red),
-        )
+        for type in self.list_type:
+            task = asyncio.to_thread(self.start_thread, type)
+            self.tasks.append(task)
+        await asyncio.gather(*self.tasks)
 
     @staticmethod
     def start_thread(type):
         parser = Parser(type)
-        print(f"Старт цикла событий _{type}_: {time.strftime('%X')}")
+        print(f"Старт потока _{type}_: {time.strftime('%X')}")
+        time.sleep(0.1)
         asyncio.run(parser.main())
         print(f"Завершение цикла событий _{type}_: {time.strftime('%X')}")
 
@@ -116,5 +117,5 @@ class WriteFile(Parser):
 
 
 if __name__ == '__main__':
-    thread = Threading('yellow', 'red')
+    thread = Threading(['yellow', 'red'])
     asyncio.run(thread.create_thread())
