@@ -25,7 +25,6 @@ class Threading:
     def start_thread(type):
         parser = Parser(type)
         print(f"Старт потока _{type}_: {time.strftime('%X')}")
-        time.sleep(0.1)
         asyncio.run(parser.main())
         print(f"Завершение цикла событий _{type}_: {time.strftime('%X')}")
 
